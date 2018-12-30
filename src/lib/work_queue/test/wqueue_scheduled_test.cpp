@@ -64,7 +64,7 @@ int WQueueScheduledTest::main()
 	_iter = 0;
 
 	// Put work in the work queue
-	scheduleInterval(500000);
+	scheduleInterval(5000);
 
 	// Wait for work to finsh
 	while (!appState.exitRequested()) {

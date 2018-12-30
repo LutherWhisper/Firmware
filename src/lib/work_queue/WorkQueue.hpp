@@ -64,16 +64,21 @@ public:
 
 private:
 
-	void work_lock() { px4_sem_wait(&_lock); }
-	void work_unlock() { px4_sem_post(&_lock); }
+#ifdef __PX4_NUTTX
+	void work_lock() { _flags = enter_critical_section(); }
+	void work_unlock() { leave_critical_section(_flags); }
+	irqstate_t _flags;
+#else
+	void work_lock() { px4_sem_wait(&_qlock); }
+	void work_unlock() { px4_sem_post(&_qlock); }
+	px4_sem_t _qlock;
+#endif
+
+	px4_sem_t _process_lock;
 
 	const char *_name{nullptr};
 
-	px4_sem_t	_lock;
-
 	px4_task_t	_task_id{-1};
-
-	sigset_t	_sigset{};
 
 	Queue<WorkItem *>	_q;
 

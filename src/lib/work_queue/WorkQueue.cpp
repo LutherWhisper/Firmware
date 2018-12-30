@@ -50,12 +50,15 @@ pthread_mutex_t px4_work_queues_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 WorkQueue::WorkQueue(const char *name) :
 	_name(name)
 {
-	px4_sem_init(&_lock, 0, 1);
+#ifndef __PX4_NUTTX
+	px4_sem_init(&_qlock, 0, 1);
+#endif /* __PX4_NUTTX */
 
-	// setup SIGUSR1
-	sigemptyset(&_sigset);
-	sigaddset(&_sigset, SIGUSR1);
+	px4_sem_init(&_process_lock, 0, 0);
+	px4_sem_setprotocol(&_process_lock, SEM_PRIO_NONE);
 }
+
+// sem_destroy
 
 static WorkQueue *
 find_work_queue(const char *name)
@@ -144,11 +147,13 @@ void WorkQueue::add(WorkItem *item)
 	work_unlock();
 
 	// Wake up the worker thread
-	px4_task_kill(_task_id, SIGUSR1);
+	px4_sem_post(&_process_lock);
 }
 
 void WorkQueue::process()
 {
+	px4_sem_wait(&_process_lock);
+
 	// process queued work
 	work_lock();
 
@@ -166,9 +171,6 @@ void WorkQueue::process()
 	}
 
 	work_unlock();
-
-	// Wait indefinitely until signalled with SIGUSR1
-	sigwaitinfo(&_sigset, nullptr);
 }
 
 } // namespace px4
